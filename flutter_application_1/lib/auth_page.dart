@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'data/profile_repository.dart';
+
 /// Login/sign-up form.
 ///
-/// On success, Supabase emits an auth state change that the app listens to
-/// (see `AuthGate` in main.dart) to swap this page for the home page.
+/// On success, Supabase emits an auth state change that the router (see
+/// router.dart) listens to, redirecting away from this page automatically.
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
 
@@ -51,10 +53,10 @@ class _AuthPageState extends State<AuthPage> {
         final response = await auth.signUp(email: email, password: password);
         final userId = response.user?.id;
         if (userId != null) {
-          await Supabase.instance.client.from('profile').insert({
-            'id': userId,
-            'username': _usernameController.text.trim(),
-          });
+          await ProfileRepository(Supabase.instance.client).createProfile(
+            userId: userId,
+            username: _usernameController.text.trim(),
+          );
         }
       } else {
         await auth.signInWithPassword(email: email, password: password);
