@@ -11,8 +11,8 @@ import '../data/models.dart';
 /// page holding its own stale copy fetched once at startup.
 class UserFilmsController extends ChangeNotifier {
   UserFilmsController({required FilmRepository repository, required String userId})
-      : _repository = repository,
-        _userId = userId;
+      : _repository = repository, // ignore: prefer_initializing_formals
+        _userId = userId; // ignore: prefer_initializing_formals
 
   final FilmRepository _repository;
   final String _userId;
