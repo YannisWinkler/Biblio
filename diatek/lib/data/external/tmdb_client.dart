@@ -7,7 +7,7 @@ import 'tmdb_models.dart';
 class TmdbClient {
   TmdbClient({required String readAccessToken})
       : _api = ApiClient(
-          baseUrl: 'https://api.themoviedb.org/3',
+          baseUrl: 'https://api.themoviedb.org/3?language=fr-FR',
           headers: {
             'Authorization': 'Bearer $readAccessToken',
             'Accept': 'application/json',
@@ -22,6 +22,25 @@ class TmdbClient {
       '/search/movie',
       query: {'query': query, 'include_adult': 'false'},
     );
+    return _movieResultsFrom(json);
+  }
+
+  /// Movies currently in theaters, per TMDB.
+  Future<List<TmdbMovieResult>> nowPlaying() async {
+    final json = await _api.getJson('/movie/now_playing');
+    return _movieResultsFrom(json);
+  }
+
+  /// Where [tmdbId] can be streamed in [region] (ISO 3166-1 alpha-2, e.g.
+  /// 'FR'), or null if TMDB has no data for that region.
+  Future<WatchProviders?> watchProviders(int tmdbId, {String region = 'FR'}) async {
+    final json = await _api.getJson('/movie/$tmdbId/watch/providers');
+    final results = json['results'] as Map<String, dynamic>? ?? const {};
+    final regionJson = results[region] as Map<String, dynamic>?;
+    return regionJson == null ? null : WatchProviders.fromJson(regionJson);
+  }
+
+  List<TmdbMovieResult> _movieResultsFrom(Map<String, dynamic> json) {
     final results = (json['results'] as List).cast<Map<String, dynamic>>();
     return results.map(TmdbMovieResult.fromJson).toList();
   }

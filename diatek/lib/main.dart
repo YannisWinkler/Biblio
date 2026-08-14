@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
   /// `provider` for them instead of constructing their own Supabase- or
   /// TMDB-backed instance.
   ///
-  /// Sign-in state and page routing (`/login`, `/movies`, `/my-list`) are
+  /// Sign-in state and page routing (`/login`, `/home`, `/my-list`) are
   /// handled by [router], not here.
   @override
   Widget build(BuildContext context) {

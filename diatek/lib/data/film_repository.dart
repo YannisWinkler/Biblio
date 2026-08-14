@@ -50,12 +50,15 @@ class FilmRepository {
     return Film.fromMap(row);
   }
 
+  /// Adds [filmId] to [userId]'s list as not-watched. A no-op (via
+  /// `ignoreDuplicates`) if it's already on the list, so it doesn't
+  /// downgrade a film that's already marked watched back to unwatched.
   Future<void> addToList(String userId, int filmId) {
-    return _client.from('user_film').insert({
-      'id_user': userId,
-      'id_film': filmId,
-      'watched': false,
-    });
+    return _client.from('user_film').upsert(
+      {'id_user': userId, 'id_film': filmId, 'watched': false},
+      onConflict: 'id_user,id_film',
+      ignoreDuplicates: true,
+    );
   }
 
   Future<void> removeFromList(String userId, int filmId) {
@@ -66,11 +69,13 @@ class FilmRepository {
         .eq('id_film', filmId);
   }
 
+  /// Sets the watched flag for [filmId], adding it to [userId]'s list first
+  /// if it isn't already there (e.g. marking a film watched straight from
+  /// search/"now playing" without adding it first).
   Future<void> setWatched(String userId, int filmId, bool watched) {
-    return _client
-        .from('user_film')
-        .update({'watched': watched})
-        .eq('id_user', userId)
-        .eq('id_film', filmId);
+    return _client.from('user_film').upsert(
+      {'id_user': userId, 'id_film': filmId, 'watched': watched},
+      onConflict: 'id_user,id_film',
+    );
   }
 }

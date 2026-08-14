@@ -122,6 +122,38 @@ class UserFilmsController extends ChangeNotifier {
     return setInList(film.id, true);
   }
 
+  /// Imports [result] into the catalogue (if needed) and marks it watched,
+  /// adding it to the user's list in the process if it wasn't already on it.
+  Future<Object?> markWatchedFromTmdb(TmdbMovieResult result) async {
+    final Film film;
+    try {
+      film = await _repository.upsertFromTmdb(result);
+    } catch (e) {
+      return e;
+    }
+    if (!_films.any((f) => f.id == film.id)) {
+      _films = [..._films, film];
+    }
+
+    final previouslyWatched = _watchedByFilmId[film.id];
+    _watchedByFilmId = Map.of(_watchedByFilmId)..[film.id] = true;
+    notifyListeners();
+
+    try {
+      await _repository.setWatched(_userId, film.id, true);
+      return null;
+    } catch (e) {
+      _watchedByFilmId = Map.of(_watchedByFilmId);
+      if (previouslyWatched != null) {
+        _watchedByFilmId[film.id] = previouslyWatched;
+      } else {
+        _watchedByFilmId.remove(film.id);
+      }
+      notifyListeners();
+      return e;
+    }
+  }
+
   /// Flips the watched flag for [filmId], persisting the change.
   Future<Object?> toggleWatched(int filmId) async {
     final newValue = !isWatched(filmId);
