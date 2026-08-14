@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'external/tmdb_models.dart';
 import 'models.dart';
 
 /// Owns every Supabase query touching the 'film' and 'user_film' tables, so
@@ -27,6 +28,29 @@ class FilmRepository {
       for (final row in List<Map<String, dynamic>>.from(rows))
         row['id_film'] as int: row['watched'] as bool,
     };
+  }
+
+  /// Returns the local film matching [result]'s TMDB id, inserting it into
+  /// the catalogue first if this is the first time it's been added.
+  Future<Film> upsertFromTmdb(TmdbMovieResult result) async {
+    final existing = await _client
+        .from('film')
+        .select()
+        .eq('tmdb_id', result.tmdbId)
+        .maybeSingle();
+    if (existing != null) return Film.fromMap(existing);
+
+    final inserted = await _client
+        .from('film')
+        .insert({
+          'name': result.title,
+          'tmdb_id': result.tmdbId,
+          'poster_path': result.posterPath,
+          'overview': result.overview,
+        })
+        .select()
+        .single();
+    return Film.fromMap(inserted);
   }
 
   Future<void> addToList(String userId, int filmId) {
