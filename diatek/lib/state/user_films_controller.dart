@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../data/external/tmdb_models.dart';
 import '../data/film_repository.dart';
 import '../data/models.dart';
 
@@ -37,6 +38,20 @@ class UserFilmsController extends ChangeNotifier {
   bool isInList(int filmId) => _watchedByFilmId.containsKey(filmId);
 
   bool isWatched(int filmId) => _watchedByFilmId[filmId] ?? false;
+
+  /// The local film id already linked to [tmdbId], if this TMDB movie has
+  /// been imported before.
+  int? localFilmIdForTmdbId(int tmdbId) {
+    for (final film in _films) {
+      if (film.tmdbId == tmdbId) return film.id;
+    }
+    return null;
+  }
+
+  bool isTmdbIdInList(int tmdbId) {
+    final localId = localFilmIdForTmdbId(tmdbId);
+    return localId != null && isInList(localId);
+  }
 
   Future<void> load() async {
     _isLoading = true;
@@ -85,6 +100,54 @@ class UserFilmsController extends ChangeNotifier {
         _watchedByFilmId[filmId] = previouslyWatched;
       } else {
         _watchedByFilmId.remove(filmId);
+      }
+      notifyListeners();
+      return e;
+    }
+  }
+
+  /// Imports [result] into the catalogue (if it isn't already there) and
+  /// adds it to the user's list.
+  Future<Object?> addFromTmdb(TmdbMovieResult result) async {
+    final Film film;
+    try {
+      film = await _repository.upsertFromTmdb(result);
+    } catch (e) {
+      return e;
+    }
+    if (!_films.any((f) => f.id == film.id)) {
+      _films = [..._films, film];
+      notifyListeners();
+    }
+    return setInList(film.id, true);
+  }
+
+  /// Imports [result] into the catalogue (if needed) and marks it watched,
+  /// adding it to the user's list in the process if it wasn't already on it.
+  Future<Object?> markWatchedFromTmdb(TmdbMovieResult result) async {
+    final Film film;
+    try {
+      film = await _repository.upsertFromTmdb(result);
+    } catch (e) {
+      return e;
+    }
+    if (!_films.any((f) => f.id == film.id)) {
+      _films = [..._films, film];
+    }
+
+    final previouslyWatched = _watchedByFilmId[film.id];
+    _watchedByFilmId = Map.of(_watchedByFilmId)..[film.id] = true;
+    notifyListeners();
+
+    try {
+      await _repository.setWatched(_userId, film.id, true);
+      return null;
+    } catch (e) {
+      _watchedByFilmId = Map.of(_watchedByFilmId);
+      if (previouslyWatched != null) {
+        _watchedByFilmId[film.id] = previouslyWatched;
+      } else {
+        _watchedByFilmId.remove(film.id);
       }
       notifyListeners();
       return e;
