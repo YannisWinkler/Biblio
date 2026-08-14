@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'state/user_films_controller.dart';
+import 'utils/confirm_dialog.dart';
 import 'utils/error_messages.dart';
 import 'widgets/movie_card.dart';
 import 'widgets/movie_grid.dart';
@@ -16,12 +17,27 @@ import 'widgets/movie_grid.dart';
 class MyListPage extends StatelessWidget {
   const MyListPage({super.key});
 
-  Future<void> _toggleWatched(BuildContext context, int filmId) async {
+  Future<void> _toggleWatched(BuildContext context, int filmId, String title, bool currentlyWatched) async {
+    if (currentlyWatched) {
+      final confirmed = await confirmDialog(
+        context,
+        title: 'Mark as not watched?',
+        content: '"$title" will be marked as not watched.',
+        confirmLabel: 'Mark as not watched',
+      );
+      if (!confirmed || !context.mounted) return;
+    }
+
     final controller = context.read<UserFilmsController>();
     final error = await controller.toggleWatched(filmId);
-    if (error != null && context.mounted) {
+    if (!context.mounted) return;
+    if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update watched status: ${friendlyMessage(error)}')),
+      );
+    } else if (!currentlyWatched) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Marked as watched')),
       );
     }
   }
@@ -29,32 +45,26 @@ class MyListPage extends StatelessWidget {
   Future<void> _remove(BuildContext context, int filmId) async {
     final controller = context.read<UserFilmsController>();
     final error = await controller.setInList(filmId, false);
-    if (error != null && context.mounted) {
+    if (!context.mounted) return;
+    if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to remove film: ${friendlyMessage(error)}')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Removed from your list')),
       );
     }
   }
 
   Future<void> _confirmRemove(BuildContext context, int filmId, String title) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Remove from list?'),
-        content: Text('"$title" will be removed from your list.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDialog(
+      context,
+      title: 'Remove from list?',
+      content: '"$title" will be removed from your list.',
+      confirmLabel: 'Remove',
     );
-    if (confirmed == true && context.mounted) {
+    if (confirmed && context.mounted) {
       await _remove(context, filmId);
     }
   }
@@ -87,7 +97,7 @@ class MyListPage extends StatelessWidget {
               onLongPress: () => _confirmRemove(context, film.id, film.name),
               overlay: _WatchedBadge(
                 watched: watched,
-                onPressed: () => _toggleWatched(context, film.id),
+                onPressed: () => _toggleWatched(context, film.id, film.name, watched),
               ),
             );
           },

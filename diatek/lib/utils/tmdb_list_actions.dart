@@ -3,25 +3,40 @@ import 'package:provider/provider.dart';
 
 import '../data/external/tmdb_models.dart';
 import '../state/user_films_controller.dart';
+import 'confirm_dialog.dart';
 import 'error_messages.dart';
 
 /// Adds or removes a TMDB result from the signed-in user's list (importing
-/// it into the catalogue first if needed), showing a SnackBar on failure.
+/// it into the catalogue first if needed), asking for confirmation before a
+/// removal, and showing a SnackBar confirming what happened either way.
 /// Shared by every page that lets the user check/uncheck a TMDB result.
 Future<void> setTmdbResultInList(BuildContext context, TmdbMovieResult result, bool selected) async {
   final controller = context.read<UserFilmsController>();
-  final Object? error;
-  if (selected) {
-    error = await controller.addFromTmdb(result);
-  } else {
+
+  if (!selected) {
     final localId = controller.localFilmIdForTmdbId(result.tmdbId);
-    error = localId == null ? null : await controller.setInList(localId, false);
-  }
-  if (error != null && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to update your list: ${friendlyMessage(error)}')),
+    if (localId == null) return;
+    final confirmed = await confirmDialog(
+      context,
+      title: 'Remove from list?',
+      content: '"${result.title}" will be removed from your list.',
+      confirmLabel: 'Remove',
     );
+    if (!confirmed || !context.mounted) return;
+    final error = await controller.setInList(localId, false);
+    if (!context.mounted) return;
+    _showResultSnackBar(context, error, successMessage: 'Removed from your list');
+    return;
   }
+
+  final error = await controller.addFromTmdb(result);
+  if (!context.mounted) return;
+  _showResultSnackBar(context, error, successMessage: 'Added to your list');
+}
+
+void _showResultSnackBar(BuildContext context, Object? error, {required String successMessage}) {
+  final message = error == null ? successMessage : 'Failed to update your list: ${friendlyMessage(error)}';
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
 
 /// The "add to my list" / "mark as watched" action pair shown in a TMDB
@@ -56,13 +71,10 @@ List<Widget> buildTmdbResultDetailActions(
 }
 
 /// Marks a TMDB result watched (importing/adding it to the list first if
-/// needed), showing a SnackBar on failure.
+/// needed), showing a SnackBar confirming what happened.
 Future<void> markTmdbResultWatched(BuildContext context, TmdbMovieResult result) async {
   final controller = context.read<UserFilmsController>();
   final error = await controller.markWatchedFromTmdb(result);
-  if (error != null && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to update your list: ${friendlyMessage(error)}')),
-    );
-  }
+  if (!context.mounted) return;
+  _showResultSnackBar(context, error, successMessage: 'Marked as watched');
 }
