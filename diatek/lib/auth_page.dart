@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'data/profile_repository.dart';
+import 'utils/error_messages.dart';
 
 /// Login/sign-up form.
 ///
@@ -45,6 +47,7 @@ class _AuthPageState extends State<AuthPage> {
 
     setState(() => _isLoading = true);
     final auth = Supabase.instance.client.auth;
+    final profileRepository = context.read<ProfileRepository>();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
@@ -53,7 +56,7 @@ class _AuthPageState extends State<AuthPage> {
         final response = await auth.signUp(email: email, password: password);
         final userId = response.user?.id;
         if (userId != null) {
-          await ProfileRepository(Supabase.instance.client).createProfile(
+          await profileRepository.createProfile(
             userId: userId,
             username: _usernameController.text.trim(),
           );
@@ -62,9 +65,9 @@ class _AuthPageState extends State<AuthPage> {
         await auth.signInWithPassword(email: email, password: password);
       }
     } on AuthException catch (e) {
-      _showError(e.message);
+      _showError(friendlyMessage(e));
     } on PostgrestException catch (e) {
-      _showError('Account created but profile failed: ${e.message}');
+      _showError('Account created, but your profile could not be saved. ${friendlyMessage(e)}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

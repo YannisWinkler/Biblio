@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'state/user_films_controller.dart';
+import 'utils/error_messages.dart';
 
 /// The signed-in user's personal list: films they've added, each with a
 /// button to toggle watched/not-watched and a button to remove it.
@@ -16,7 +17,7 @@ class MyListPage extends StatelessWidget {
     final error = await controller.toggleWatched(filmId);
     if (error != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update watched status: $error')),
+        SnackBar(content: Text('Failed to update watched status: ${friendlyMessage(error)}')),
       );
     }
   }
@@ -26,7 +27,7 @@ class MyListPage extends StatelessWidget {
     final error = await controller.setInList(filmId, false);
     if (error != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to remove film: $error')),
+        SnackBar(content: Text('Failed to remove film: ${friendlyMessage(error)}')),
       );
     }
   }
@@ -39,7 +40,7 @@ class MyListPage extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (controller.error != null) {
-          return Center(child: Text('Failed to load your list: ${controller.error}'));
+          return Center(child: Text('Failed to load your list: ${friendlyMessage(controller.error!)}'));
         }
         final films = controller.userFilms;
         if (films.isEmpty) {

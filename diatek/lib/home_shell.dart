@@ -32,13 +32,14 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    final client = Supabase.instance.client;
-    final userId = client.auth.currentUser!.id;
+    // Router guarantees only a signed-in user ever reaches HomeShell (see
+    // the redirect in router.dart), so currentUser is never null here.
+    final userId = Supabase.instance.client.auth.currentUser!.id;
     _controller = UserFilmsController(
-      repository: FilmRepository(client),
+      repository: context.read<FilmRepository>(),
       userId: userId,
     )..load();
-    _profileFuture = ProfileRepository(client).fetchProfile(userId);
+    _profileFuture = context.read<ProfileRepository>().fetchProfile(userId);
   }
 
   @override

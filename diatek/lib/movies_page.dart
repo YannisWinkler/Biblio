@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'state/user_films_controller.dart';
+import 'utils/error_messages.dart';
+import 'utils/text_search.dart';
 
 /// All films, each with a checkbox to add/remove it from the signed-in
 /// user's list (the 'user_film' join table), filterable via a search bar.
@@ -29,7 +31,7 @@ class _MoviesPageState extends State<MoviesPage> {
     final error = await controller.setInList(filmId, selected);
     if (error != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update your list: $error')),
+        SnackBar(content: Text('Failed to update your list: ${friendlyMessage(error)}')),
       );
     }
   }
@@ -62,14 +64,13 @@ class _MoviesPageState extends State<MoviesPage> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (controller.error != null) {
-                return Center(child: Text('Failed to load films: ${controller.error}'));
+                return Center(child: Text('Failed to load films: ${friendlyMessage(controller.error!)}'));
               }
-              final query = _searchController.text.trim().toLowerCase();
-              final films = query.isEmpty
-                  ? controller.allFilms
-                  : controller.allFilms
-                      .where((film) => film.name.toLowerCase().contains(query))
-                      .toList();
+              final films = searchByTitle(
+                controller.allFilms,
+                _searchController.text,
+                (film) => film.name,
+              );
               if (films.isEmpty) {
                 return const Center(child: Text('No movies match your search.'));
               }
