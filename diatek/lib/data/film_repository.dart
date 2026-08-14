@@ -32,25 +32,22 @@ class FilmRepository {
 
   /// Returns the local film matching [result]'s TMDB id, inserting it into
   /// the catalogue first if this is the first time it's been added.
+  ///
+  /// Uses an atomic upsert (on the 'film_tmdb_id_key' unique index) rather
+  /// than a select-then-insert, so two concurrent calls for the same movie
+  /// can't race each other into a duplicate-key error.
   Future<Film> upsertFromTmdb(TmdbMovieResult result) async {
-    final existing = await _client
+    final row = await _client
         .from('film')
-        .select()
-        .eq('tmdb_id', result.tmdbId)
-        .maybeSingle();
-    if (existing != null) return Film.fromMap(existing);
-
-    final inserted = await _client
-        .from('film')
-        .insert({
+        .upsert({
           'name': result.title,
           'tmdb_id': result.tmdbId,
           'poster_path': result.posterPath,
           'overview': result.overview,
-        })
+        }, onConflict: 'tmdb_id')
         .select()
         .single();
-    return Film.fromMap(inserted);
+    return Film.fromMap(row);
   }
 
   Future<void> addToList(String userId, int filmId) {
