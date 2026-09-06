@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 import 'api_client.dart';
 import 'tmdb_models.dart';
 
@@ -5,14 +7,15 @@ import 'tmdb_models.dart';
 /// today; other TMDB endpoints (or other external sources entirely) can be
 /// added the same way without touching [ApiClient].
 class TmdbClient {
-  TmdbClient({required String readAccessToken})
-      : _api = ApiClient(
-          baseUrl: 'https://api.themoviedb.org/3?language=fr-FR',
-          headers: {
-            'Authorization': 'Bearer $readAccessToken',
-            'Accept': 'application/json',
-          },
-        );
+  TmdbClient({required String readAccessToken, @visibleForTesting ApiClient? apiClient})
+      : _api = apiClient ??
+            ApiClient(
+              baseUrl: 'https://api.themoviedb.org/3?language=fr-FR',
+              headers: {
+                'Authorization': 'Bearer $readAccessToken',
+                'Accept': 'application/json',
+              },
+            );
 
   final ApiClient _api;
 

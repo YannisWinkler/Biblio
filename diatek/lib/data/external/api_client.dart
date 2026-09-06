@@ -1,17 +1,23 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 
 /// Thin wrapper around a JSON REST API: base URL, default headers, and
 /// error handling shared by every external data source (TMDB today, others
 /// later), so each source only has to describe its own endpoints.
 class ApiClient {
-  ApiClient({required String baseUrl, Map<String, String> headers = const {}})
-      : _baseUrl = Uri.parse(baseUrl),
-        _headers = headers; // ignore: prefer_initializing_formals
+  ApiClient({
+    required String baseUrl,
+    Map<String, String> headers = const {},
+    @visibleForTesting http.Client? client,
+  })  : _baseUrl = Uri.parse(baseUrl),
+        _headers = headers, // ignore: prefer_initializing_formals
+        _client = client ?? http.Client();
 
   final Uri _baseUrl;
   final Map<String, String> _headers;
+  final http.Client _client;
 
   /// GETs [path] (relative to the base URL) with [query] appended, and
   /// decodes the response body as JSON.
@@ -23,7 +29,7 @@ class ApiClient {
       path: '${_baseUrl.path}$path',
       queryParameters: {..._baseUrl.queryParameters, ...query},
     );
-    final response = await http.get(uri, headers: _headers);
+    final response = await _client.get(uri, headers: _headers);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(uri, response.statusCode);
     }
